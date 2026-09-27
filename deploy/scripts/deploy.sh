@@ -12,7 +12,7 @@ cd "$DIR"
 PREV_TAG="$(cat .current_tag 2>/dev/null || true)"
 echo "==> [$APP_ENV] deploying $IMAGE:$NEW_TAG (previous: ${PREV_TAG:-none})"
 
-compose() { APP_ENV="$APP_ENV" IMAGE="$IMAGE" IMAGE_TAG="$1" docker compose -f docker-compose.yml "${@:2}"; }
+compose() { APP_UID="$(id -u)" APP_GID="$(id -g)" APP_ENV="$APP_ENV" IMAGE="$IMAGE" IMAGE_TAG="$1" docker compose -f docker-compose.yml "${@:2}"; }
 
 wait_healthy() {
   for i in $(seq 1 40); do

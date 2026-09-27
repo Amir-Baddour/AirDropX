@@ -8,6 +8,8 @@ services:
     image: ${IMAGE:?set IMAGE}:${IMAGE_TAG:?set IMAGE_TAG}
     container_name: airdropx-${APP_ENV}-api
     restart: unless-stopped
+    # Run as the server's deploy user, so the app can read app.env (kept private: mode 600, owned by deploy)
+    user: "${APP_UID:-1000}:${APP_GID:-1000}"
     mem_limit: 450m             # Java uses 75% of this for its heap (see Dockerfile)
     volumes:
       # Your backend's .env, written by the pipeline from GitHub secrets
