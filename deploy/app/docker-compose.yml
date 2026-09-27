@@ -1,0 +1,47 @@
+# AirdropX API + its own PostgreSQL.
+# The deploy script sets APP_ENV (production), IMAGE and IMAGE_TAG.
+# Memory limits keep everything inside a 1 GB droplet.
+name: airdropx-${APP_ENV:?set APP_ENV}
+
+services:
+  api:
+    image: ${IMAGE:?set IMAGE}:${IMAGE_TAG:?set IMAGE_TAG}
+    container_name: airdropx-${APP_ENV}-api
+    restart: unless-stopped
+    mem_limit: 450m             # Java uses 75% of this for its heap (see Dockerfile)
+    volumes:
+      # Your backend's .env, written by the pipeline from GitHub secrets
+      - ./app.env:/app/.env:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - edge       # reachable by Caddy
+      - internal   # reaches its own database only
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+  db:
+    image: postgres:16-alpine
+    container_name: airdropx-${APP_ENV}-db
+    restart: unless-stopped
+    mem_limit: 256m
+    env_file: ./db.env          # POSTGRES_DB / POSTGRES_USER / POSTGRES_PASSWORD
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - internal   # NOT published to the internet (no "ports:")
+
+volumes:
+  pgdata:
+
+networks:
+  edge:
+    external: true
+  internal:

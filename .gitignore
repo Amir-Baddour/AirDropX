@@ -1,0 +1,18 @@
+# Secrets: never commit these
+.env
+**/.env
+*.env
+*.pem
+airdropx_deploy
+airdropx_deploy.pub
+
+# Build output
+**/target/
+
+# IDE
+**/.idea/
+**/*.iml
+**/.vscode/
+
+# OS
+.DS_Store

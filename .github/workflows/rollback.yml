@@ -1,0 +1,33 @@
+name: Rollback
+
+# Manual button in the Actions tab: redeploy any earlier image tag to production.
+# Tags are the first 12 characters of a commit SHA (see Packages on GitHub, or deploy-history.log on the server).
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Image tag to redeploy (12-char commit SHA)
+        required: true
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  image-name:
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.n.outputs.image }}
+    steps:
+      - id: n
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+  rollback:
+    needs: image-name
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      environment: production
+      image: ${{ needs.image-name.outputs.image }}
+      tag: ${{ inputs.tag }}
+      health_url: https://64-23-156-149.sslip.io/health
+    secrets: inherit

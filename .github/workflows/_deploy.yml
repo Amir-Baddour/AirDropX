@@ -1,0 +1,71 @@
+name: _deploy (reusable)
+
+# Shared deploy steps, called by cd.yml and rollback.yml.
+on:
+  workflow_call:
+    inputs:
+      environment: { type: string, required: true }  # staging | production
+      image:       { type: string, required: true }
+      tag:         { type: string, required: true }
+      health_url:  { type: string, required: true }
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ inputs.health_url }}
+    env:
+      TARGET: deploy@${{ secrets.SSH_HOST }}
+      DIR: /opt/airdropx/${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Upload compose files and scripts
+        run: |
+          scp deploy/app/docker-compose.yml deploy/scripts/deploy.sh "$TARGET:$DIR/"
+          scp deploy/proxy/docker-compose.yml deploy/proxy/Caddyfile "$TARGET:/opt/airdropx/proxy/"
+
+      - name: Write env files from GitHub secrets (never stored in the repo)
+        env:
+          APP_ENV_FILE: ${{ secrets.APP_ENV_FILE }}
+          DB_ENV_FILE: ${{ secrets.DB_ENV_FILE }}
+        run: |
+          printf '%s\n' "$APP_ENV_FILE" | ssh "$TARGET" "umask 077 && cat > $DIR/app.env"
+          printf '%s\n' "$DB_ENV_FILE"  | ssh "$TARGET" "umask 077 && cat > $DIR/db.env"
+
+      - name: Start / update the HTTPS proxy
+        run: ssh "$TARGET" "cd /opt/airdropx/proxy && docker compose up -d"
+
+      - name: Log the server into GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | ssh "$TARGET" "docker login ghcr.io -u ${{ github.actor }} --password-stdin"
+
+      - name: Deploy (auto-rollback if unhealthy)
+        run: ssh "$TARGET" "bash $DIR/deploy.sh ${{ inputs.environment }} ${{ inputs.image }} ${{ inputs.tag }}"
+
+      - name: Smoke test over HTTPS
+        run: |
+          for i in $(seq 1 20); do
+            if curl -fsS --max-time 5 "${{ inputs.health_url }}"; then
+              echo; echo "Smoke test passed"; exit 0
+            fi
+            echo "waiting for ${{ inputs.health_url }} ($i/20)"; sleep 6
+          done
+          echo "Smoke test FAILED"; exit 1
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### ${{ inputs.environment }}: \`${{ inputs.tag }}\` (${{ job.status }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ inputs.health_url }}" >> "$GITHUB_STEP_SUMMARY"

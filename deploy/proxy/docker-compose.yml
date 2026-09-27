@@ -1,0 +1,26 @@
+# Caddy reverse proxy: automatic HTTPS in front of the AirdropX API.
+name: airdropx-proxy
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: airdropx-caddy
+    restart: unless-stopped
+    mem_limit: 64m
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - edge
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  edge:
+    external: true

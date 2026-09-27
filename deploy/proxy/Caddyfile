@@ -1,0 +1,8 @@
+# No domain yet: sslip.io maps "64-23-156-149.sslip.io" to 64.23.156.149,
+# so Caddy can still get a real Let's Encrypt HTTPS certificate.
+# When you buy a domain, replace this hostname and redeploy.
+
+64-23-156-149.sslip.io {
+	encode gzip
+	reverse_proxy airdropx-production-api:8080
+}
