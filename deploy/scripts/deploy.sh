@@ -26,7 +26,7 @@ wait_healthy() {
 }
 
 compose "$NEW_TAG" pull api
-compose "$NEW_TAG" up -d --remove-orphans
+compose "$NEW_TAG" up -d --remove-orphans --force-recreate api   # recreate so new secrets/config are always loaded
 
 if wait_healthy; then
   echo "$NEW_TAG" > .current_tag
@@ -42,7 +42,7 @@ echo "$(date -u +%FT%TZ) $NEW_TAG FAILED" >> deploy-history.log
 
 if [ -n "$PREV_TAG" ]; then
   echo "==> rolling back to $PREV_TAG"
-  compose "$PREV_TAG" up -d
+  compose "$PREV_TAG" up -d --force-recreate api
   wait_healthy && echo "==> rollback OK" || echo "!!> rollback also unhealthy, check the server"
 fi
 exit 1
