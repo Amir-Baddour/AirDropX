@@ -53,12 +53,20 @@ jobs:
   dependency-scan:
     name: Dependency vulnerabilities (Trivy)
     runs-on: ubuntu-latest
+    needs: build
     steps:
-      - uses: actions/checkout@v4
+      # Scan the JAR that the build job produced. It already contains every library,
+      # so Trivy doesn't need to call Maven Central (which rate-limits shared CI machines).
+      - uses: actions/download-artifact@v4
+        with:
+          name: app-jar
+          path: jar
       - uses: aquasecurity/trivy-action@master
+        env:
+          TRIVY_OFFLINE_SCAN: "true"
         with:
           scan-type: fs
-          scan-ref: backend
+          scan-ref: jar
           scanners: vuln
           severity: CRITICAL,HIGH
           ignore-unfixed: true
