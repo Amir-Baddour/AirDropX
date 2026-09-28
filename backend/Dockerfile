@@ -12,7 +12,7 @@ RUN mvn -B -q -DskipTests package \
  && find target -maxdepth 1 -name "*.jar" ! -name "original-*" -exec cp {} /app.jar \;
 
 # ---------- Stage 2: small runtime image ----------
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:24-jre
 WORKDIR /app
 
 RUN apt-get update \
