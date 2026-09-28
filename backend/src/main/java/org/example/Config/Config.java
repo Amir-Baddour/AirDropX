@@ -93,4 +93,29 @@ public class Config {
         }
         return region;
     }
+    // Optional settings with defaults: the app starts even if they are missing from .env
+    public static double getMockPayoutFailureRate() {
+        String value = dotenv.get("MOCK_PAYOUT_FAILURE_RATE", "0.05");
+        try {
+            return Double.parseDouble(value.trim());
+        } catch (NumberFormatException e) {
+            return 0.05;
+        }
+    }
+    public static int getWorkerBatchSize() {
+        String value = dotenv.get("WORKER_BATCH_SIZE", "20");
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException e) {
+            return 20;
+        }
+    }
+    public static long getWorkerIntervalSeconds() {
+        String value = dotenv.get("WORKER_INTERVAL_SECONDS", "5");
+        try {
+            return Long.parseLong(value.trim());
+        } catch (NumberFormatException e) {
+            return 5;
+        }
+    }
 }

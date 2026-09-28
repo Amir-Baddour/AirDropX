@@ -1,5 +1,10 @@
 package org.example;
+import org.example.Api.Airdrop.AirdropApi;
+import org.example.Api.Company.CompanyApi;
 import org.example.Api.User.UserApi;
+import org.example.Config.Config;
+import org.example.Core.Payout.MockPayoutProvider;
+import org.example.Core.Worker.AirdropWorker;
 import org.example.Infra.DatabaseMigration;
 import org.example.Resources.DataPopulation;
 import org.slf4j.Logger;
@@ -14,6 +19,7 @@ public class Main {
     private static final Logger logger = LoggerFactory.getLogger(Main.class.getName());
     private static final CountDownLatch stopLatch = new CountDownLatch(1);
     private static final ExecutorService postgresExecutor = Executors.newCachedThreadPool();
+    private static AirdropWorker airdropWorker;
     public static void main(String[] args) {
         Thread.setDefaultUncaughtExceptionHandler((thread, throwable) ->
                 logger.error("Uncaught exception in thread {}", thread.getName(), throwable)
@@ -41,6 +47,11 @@ public class Main {
             Thread.sleep(2000);
             awaitInitialization();
             logger.info("Server successfully started on port 8080");
+            airdropWorker = new AirdropWorker(
+                    new MockPayoutProvider(Config.getMockPayoutFailureRate()),
+                    Config.getWorkerBatchSize(),
+                    Config.getWorkerIntervalSeconds());
+            airdropWorker.start();
             setupShutdownHook();
             try {
                 stopLatch.await();
@@ -104,6 +115,8 @@ public class Main {
             logger.info("I created my instance");
             userApi.initializeRoutes();
             logger.info("I created my routes");
+            new CompanyApi().initializeRoutes();
+            new AirdropApi().initializeRoutes();
             get("/health", (req, res) -> {
                 res.type("text/plain");
                 return "OK";
@@ -128,6 +141,9 @@ public class Main {
     private static void shutdown() {
         logger.info("Beginning shutdown process...");
         try {
+            if (airdropWorker != null) {
+                airdropWorker.stop();
+            }
             logger.info("Stopping Spark server...");
             stop();
             logger.info("Shutting down PostgreSQL connections...");
