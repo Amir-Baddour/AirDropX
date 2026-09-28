@@ -23,6 +23,10 @@ public class DatabaseMigration {
             createNetworksTable(connection);
             createNetworkInitialSupply(connection);
             createNetworkInstructionsTable(connection);
+            createCompaniesTable(connection);
+            createAirdropsTable(connection);
+            createAirdropRecipientsTable(connection);
+            createAirdropEventsTable(connection);
             logger.info("Table creation sequence completed successfully");
         } catch (SQLException e) {
             logger.error("Migration failed: {}", e.getMessage());
@@ -43,6 +47,11 @@ public class DatabaseMigration {
         logger.info("Dropping existing tables...");
         try (Statement stmt = connection.createStatement()) {
             String[] dropStatements = {
+                    "DROP TABLE IF EXISTS airdrop_events CASCADE",
+                    "DROP TABLE IF EXISTS airdrop_recipients CASCADE",
+                    "DROP TABLE IF EXISTS airdrops CASCADE",
+                    "DROP TABLE IF EXISTS company_members CASCADE",
+                    "DROP TABLE IF EXISTS companies CASCADE",
                     "DROP TYPE IF EXISTS network_instructions CASCADE",
                     "DROP TABLE IF EXISTS network_initial_supply CASCADE",
                     "DROP TABLE IF EXISTS networks CASCADE",
@@ -262,6 +271,123 @@ public class DatabaseMigration {
         }
         }
     }
+    private static void createCompaniesTable(Connection connection) throws SQLException {
+        String tableName = "companies";
+        boolean exists = tableExists(connection, tableName);
+        String sql = "CREATE TABLE IF NOT EXISTS companies (" +
+                "id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), " +
+                "name VARCHAR(150) NOT NULL, " +
+                "owner_id UUID NOT NULL, " +
+                "status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'SUSPENDED')), " +
+                "created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, " +
+                "updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, " +
+                "CONSTRAINT fk_company_owner FOREIGN KEY (owner_id) REFERENCES users(id)" +
+                ")";
+        String membersSql = "CREATE TABLE IF NOT EXISTS company_members (" +
+                "company_id UUID NOT NULL, " +
+                "user_id UUID NOT NULL UNIQUE, " +
+                "member_role VARCHAR(20) NOT NULL DEFAULT 'MEMBER' CHECK (member_role IN ('OWNER', 'MEMBER')), " +
+                "created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, " +
+                "PRIMARY KEY (company_id, user_id), " +
+                "CONSTRAINT fk_member_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE, " +
+                "CONSTRAINT fk_member_user FOREIGN KEY (user_id) REFERENCES users(id)" +
+                ")";
+        String trigger = "CREATE OR REPLACE TRIGGER update_companies_updated_at " +
+                "    BEFORE UPDATE ON companies " +
+                "    FOR EACH ROW " +
+                "    EXECUTE FUNCTION update_updated_at_column()";
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute(sql);
+            stmt.execute(membersSql);
+            if (!exists) {
+                logger.info("Creating trigger for table {}", tableName);
+                stmt.execute(trigger);
+            }
+        }
+    }
+    private static void createAirdropsTable(Connection connection) throws SQLException {
+        String tableName = "airdrops";
+        boolean exists = tableExists(connection, tableName);
+        String sql = "CREATE TABLE IF NOT EXISTS airdrops (" +
+                "id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), " +
+                "company_id UUID NOT NULL, " +
+                "name VARCHAR(150) NOT NULL, " +
+                "description TEXT, " +
+                "token_symbol VARCHAR(15) NOT NULL, " +
+                "status VARCHAR(20) NOT NULL DEFAULT 'DRAFT' " +
+                "    CHECK (status IN ('DRAFT', 'VALIDATED', 'PROCESSING', 'COMPLETED', 'CANCELLED')), " +
+                "created_by UUID NOT NULL, " +
+                "launched_at TIMESTAMP WITH TIME ZONE, " +
+                "completed_at TIMESTAMP WITH TIME ZONE, " +
+                "created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, " +
+                "updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, " +
+                "CONSTRAINT fk_airdrop_company FOREIGN KEY (company_id) REFERENCES companies(id), " +
+                "CONSTRAINT fk_airdrop_creator FOREIGN KEY (created_by) REFERENCES users(id)" +
+                ")";
+        String createIndexes = "CREATE INDEX IF NOT EXISTS idx_airdrops_company ON airdrops(company_id, created_at DESC); " +
+                "CREATE INDEX IF NOT EXISTS idx_airdrops_status ON airdrops(status)";
+        String trigger = "CREATE OR REPLACE TRIGGER update_airdrops_updated_at " +
+                "    BEFORE UPDATE ON airdrops " +
+                "    FOR EACH ROW " +
+                "    EXECUTE FUNCTION update_updated_at_column()";
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute(sql);
+            stmt.execute(createIndexes);
+            if (!exists) {
+                logger.info("Creating trigger for table {}", tableName);
+                stmt.execute(trigger);
+            }
+        }
+    }
+    private static void createAirdropRecipientsTable(Connection connection) throws SQLException {
+        String tableName = "airdrop_recipients";
+        boolean exists = tableExists(connection, tableName);
+        String sql = "CREATE TABLE IF NOT EXISTS airdrop_recipients (" +
+                "id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), " +
+                "airdrop_id UUID NOT NULL, " +
+                "address VARCHAR(100) NOT NULL, " +
+                "address_key VARCHAR(100) NOT NULL, " +
+                "amount NUMERIC(38, 18) NOT NULL CHECK (amount > 0), " +
+                "status VARCHAR(20) NOT NULL DEFAULT 'PENDING' " +
+                "    CHECK (status IN ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', 'CANCELLED')), " +
+                "attempts INTEGER NOT NULL DEFAULT 0, " +
+                "tx_ref VARCHAR(100), " +
+                "error TEXT, " +
+                "created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, " +
+                "updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, " +
+                "CONSTRAINT fk_recipient_airdrop FOREIGN KEY (airdrop_id) REFERENCES airdrops(id) ON DELETE CASCADE, " +
+                "CONSTRAINT uq_recipient_address UNIQUE (airdrop_id, address_key)" +
+                ")";
+        String createIndexes = "CREATE INDEX IF NOT EXISTS idx_recipients_airdrop ON airdrop_recipients(airdrop_id, status); " +
+                "CREATE INDEX IF NOT EXISTS idx_recipients_pending ON airdrop_recipients(created_at) WHERE status = 'PENDING'";
+        String trigger = "CREATE OR REPLACE TRIGGER update_airdrop_recipients_updated_at " +
+                "    BEFORE UPDATE ON airdrop_recipients " +
+                "    FOR EACH ROW " +
+                "    EXECUTE FUNCTION update_updated_at_column()";
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute(sql);
+            stmt.execute(createIndexes);
+            if (!exists) {
+                logger.info("Creating trigger for table {}", tableName);
+                stmt.execute(trigger);
+            }
+        }
+    }
+    private static void createAirdropEventsTable(Connection connection) throws SQLException {
+        String sql = "CREATE TABLE IF NOT EXISTS airdrop_events (" +
+                "id BIGSERIAL PRIMARY KEY, " +
+                "airdrop_id UUID NOT NULL, " +
+                "type VARCHAR(40) NOT NULL, " +
+                "message TEXT, " +
+                "created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, " +
+                "CONSTRAINT fk_event_airdrop FOREIGN KEY (airdrop_id) REFERENCES airdrops(id) ON DELETE CASCADE" +
+                ")";
+        String createIndexes = "CREATE INDEX IF NOT EXISTS idx_airdrop_events_airdrop ON airdrop_events(airdrop_id, id DESC)";
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute(sql);
+            stmt.execute(createIndexes);
+        }
+    }
     private static boolean tableExists(Connection connection, String tableName) throws SQLException {
         try (ResultSet rs = connection.getMetaData().getTables(null, null, tableName.toLowerCase(), null)) {
             return rs.next();
@@ -285,4 +411,4 @@ public class DatabaseMigration {
             }
         }
     }
-}
+}
