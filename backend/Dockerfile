@@ -1,5 +1,5 @@
 # ---------- Stage 1: build the shaded JAR with Maven ----------
-FROM maven:3.9-eclipse-temurin-17 AS build
+FROM maven:3-eclipse-temurin-24 AS build
 WORKDIR /src
 
 # Download dependencies first so this layer is cached between builds
