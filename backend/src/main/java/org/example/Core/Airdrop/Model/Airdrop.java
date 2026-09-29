@@ -1,5 +1,7 @@
 package org.example.Core.Airdrop.Model;
 
+import java.math.BigDecimal;
+
 public record Airdrop(
         String id,
         String companyId,
@@ -11,6 +13,9 @@ public record Airdrop(
         String createdAt,
         String updatedAt,
         String launchedAt,
-        String completedAt
+        String completedAt,
+        boolean claimsOpen,
+        BigDecimal claimAmount,
+        Integer maxClaims
 ) {
 }

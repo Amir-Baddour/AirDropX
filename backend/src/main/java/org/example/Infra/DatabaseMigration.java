@@ -27,6 +27,10 @@ public class DatabaseMigration {
             createAirdropsTable(connection);
             createAirdropRecipientsTable(connection);
             createAirdropEventsTable(connection);
+            addAirdropClaimColumns(connection);
+            createAirdropTasksTable(connection);
+            createClaimsTable(connection);
+            createClaimTaskResultsTable(connection);
             logger.info("Table creation sequence completed successfully");
         } catch (SQLException e) {
             logger.error("Migration failed: {}", e.getMessage());
@@ -47,6 +51,9 @@ public class DatabaseMigration {
         logger.info("Dropping existing tables...");
         try (Statement stmt = connection.createStatement()) {
             String[] dropStatements = {
+                    "DROP TABLE IF EXISTS claim_task_results CASCADE",
+                    "DROP TABLE IF EXISTS claims CASCADE",
+                    "DROP TABLE IF EXISTS airdrop_tasks CASCADE",
                     "DROP TABLE IF EXISTS airdrop_events CASCADE",
                     "DROP TABLE IF EXISTS airdrop_recipients CASCADE",
                     "DROP TABLE IF EXISTS airdrops CASCADE",
@@ -386,6 +393,83 @@ public class DatabaseMigration {
         try (Statement stmt = connection.createStatement()) {
             stmt.execute(sql);
             stmt.execute(createIndexes);
+        }
+    }
+    private static void addAirdropClaimColumns(Connection connection) throws SQLException {
+        String sql = "ALTER TABLE airdrops " +
+                "ADD COLUMN IF NOT EXISTS claims_open BOOLEAN NOT NULL DEFAULT FALSE, " +
+                "ADD COLUMN IF NOT EXISTS claim_amount NUMERIC(38, 18) CHECK (claim_amount > 0), " +
+                "ADD COLUMN IF NOT EXISTS max_claims INTEGER CHECK (max_claims > 0)";
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute(sql);
+        }
+    }
+    private static void createAirdropTasksTable(Connection connection) throws SQLException {
+        String sql = "CREATE TABLE IF NOT EXISTS airdrop_tasks (" +
+                "id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), " +
+                "airdrop_id UUID NOT NULL, " +
+                "type VARCHAR(30) NOT NULL CHECK (type IN ('QUIZ', 'SECRET_CODE', 'MANUAL_PROOF')), " +
+                "title VARCHAR(150) NOT NULL, " +
+                "description TEXT, " +
+                "config JSONB NOT NULL DEFAULT '{}', " +
+                "position INTEGER NOT NULL DEFAULT 0, " +
+                "created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, " +
+                "CONSTRAINT fk_task_airdrop FOREIGN KEY (airdrop_id) REFERENCES airdrops(id) ON DELETE CASCADE" +
+                ")";
+        String createIndexes = "CREATE INDEX IF NOT EXISTS idx_airdrop_tasks_airdrop ON airdrop_tasks(airdrop_id, position)";
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute(sql);
+            stmt.execute(createIndexes);
+        }
+    }
+    private static void createClaimsTable(Connection connection) throws SQLException {
+        String tableName = "claims";
+        boolean exists = tableExists(connection, tableName);
+        String sql = "CREATE TABLE IF NOT EXISTS claims (" +
+                "id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), " +
+                "airdrop_id UUID NOT NULL, " +
+                "address VARCHAR(100) NOT NULL, " +
+                "address_key VARCHAR(100) NOT NULL, " +
+                "status VARCHAR(20) NOT NULL CHECK (status IN ('APPROVED', 'NEEDS_REVIEW', 'REJECTED')), " +
+                "token_hash VARCHAR(64) NOT NULL UNIQUE, " +
+                "ip_hash VARCHAR(64), " +
+                "reject_reason TEXT, " +
+                "reviewed_by UUID, " +
+                "reviewed_at TIMESTAMP WITH TIME ZONE, " +
+                "created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, " +
+                "updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, " +
+                "CONSTRAINT fk_claim_airdrop FOREIGN KEY (airdrop_id) REFERENCES airdrops(id) ON DELETE CASCADE, " +
+                "CONSTRAINT uq_claim_address UNIQUE (airdrop_id, address_key)" +
+                ")";
+        String createIndexes = "CREATE INDEX IF NOT EXISTS idx_claims_airdrop_status ON claims(airdrop_id, status); " +
+                "CREATE INDEX IF NOT EXISTS idx_claims_airdrop_ip ON claims(airdrop_id, ip_hash)";
+        String trigger = "CREATE OR REPLACE TRIGGER update_claims_updated_at " +
+                "    BEFORE UPDATE ON claims " +
+                "    FOR EACH ROW " +
+                "    EXECUTE FUNCTION update_updated_at_column()";
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute(sql);
+            stmt.execute(createIndexes);
+            if (!exists) {
+                logger.info("Creating trigger for table {}", tableName);
+                stmt.execute(trigger);
+            }
+        }
+    }
+    private static void createClaimTaskResultsTable(Connection connection) throws SQLException {
+        String sql = "CREATE TABLE IF NOT EXISTS claim_task_results (" +
+                "claim_id UUID NOT NULL, " +
+                "task_id UUID NOT NULL, " +
+                "passed BOOLEAN NOT NULL, " +
+                "needs_review BOOLEAN NOT NULL DEFAULT FALSE, " +
+                "proof TEXT, " +
+                "detail TEXT, " +
+                "PRIMARY KEY (claim_id, task_id), " +
+                "CONSTRAINT fk_result_claim FOREIGN KEY (claim_id) REFERENCES claims(id) ON DELETE CASCADE, " +
+                "CONSTRAINT fk_result_task FOREIGN KEY (task_id) REFERENCES airdrop_tasks(id) ON DELETE CASCADE" +
+                ")";
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute(sql);
         }
     }
     private static boolean tableExists(Connection connection, String tableName) throws SQLException {

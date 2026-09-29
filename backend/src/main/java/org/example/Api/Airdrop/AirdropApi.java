@@ -209,6 +209,9 @@ public class AirdropApi {
         json.addProperty("updated_at", airdrop.updatedAt());
         json.addProperty("launched_at", airdrop.launchedAt());
         json.addProperty("completed_at", airdrop.completedAt());
+        json.addProperty("claims_open", airdrop.claimsOpen());
+        json.addProperty("claim_amount", airdrop.claimAmount() == null ? null : airdrop.claimAmount().toPlainString());
+        json.addProperty("max_claims", airdrop.maxClaims());
         return json;
     }
 

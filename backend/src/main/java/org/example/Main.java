@@ -1,6 +1,8 @@
 package org.example;
 import org.example.Api.Airdrop.AirdropApi;
+import org.example.Api.Claim.ClaimApi;
 import org.example.Api.Company.CompanyApi;
+import org.example.Api.Public.PublicClaimApi;
 import org.example.Api.User.UserApi;
 import org.example.Config.Config;
 import org.example.Core.Payout.MockPayoutProvider;
@@ -117,6 +119,8 @@ public class Main {
             logger.info("I created my routes");
             new CompanyApi().initializeRoutes();
             new AirdropApi().initializeRoutes();
+            new ClaimApi().initializeRoutes();
+            new PublicClaimApi().initializeRoutes();
             get("/health", (req, res) -> {
                 res.type("text/plain");
                 return "OK";
