@@ -40,6 +40,10 @@ public class AirdropUpdater {
                     throw new AirdropValidationException("Add at least one recipient before validating");
                 }
                 move(conn, airdropId, EnumSet.of(AirdropStatus.DRAFT), AirdropStatus.VALIDATED);
+                if (airdrop.claimsOpen()) {
+                    airdropRepository.closeClaims(conn, airdropId);
+                    eventRepository.add(conn, airdropId, "CLAIMS_CLOSED", "Public claims closed on validation");
+                }
                 eventRepository.add(conn, airdropId, "VALIDATED", "Validated with " + count + " recipient(s)");
                 conn.commit();
             } catch (Exception e) {
@@ -68,6 +72,7 @@ public class AirdropUpdater {
             conn.setAutoCommit(false);
             try {
                 move(conn, airdropId, EnumSet.of(AirdropStatus.DRAFT, AirdropStatus.VALIDATED, AirdropStatus.PROCESSING), AirdropStatus.CANCELLED);
+                airdropRepository.closeClaims(conn, airdropId);
                 int cancelled = recipientRepository.cancelOpen(conn, airdropId);
                 eventRepository.add(conn, airdropId, "CANCELLED", "Airdrop cancelled; " + cancelled + " pending recipient(s) cancelled");
                 conn.commit();

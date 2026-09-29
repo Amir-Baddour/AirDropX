@@ -18,7 +18,8 @@ import java.util.UUID;
 
 public class AirdropRepository {
     private static final String COLUMNS =
-            "id, company_id, name, description, token_symbol, status, created_by, created_at, updated_at, launched_at, completed_at";
+            "id, company_id, name, description, token_symbol, status, created_by, created_at, updated_at, launched_at, completed_at, " +
+            "claims_open, claim_amount, max_claims";
 
     public Airdrop create(String companyId, String name, String description, String tokenSymbol, String createdBy) throws SQLException {
         String sql = "INSERT INTO airdrops (company_id, name, description, token_symbol, created_by) " +
@@ -52,6 +53,65 @@ public class AirdropRepository {
             }
         }
         return Optional.empty();
+    }
+
+    /** Public lookup (no company check) used by the claim pages. */
+    public Optional<Airdrop> findById(String airdropId) throws SQLException {
+        String sql = "SELECT " + COLUMNS + " FROM airdrops WHERE id = ?";
+        try (Connection conn = JdbcConnection.connect();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setObject(1, UUID.fromString(airdropId));
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(map(rs));
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Locks the airdrop row until the transaction ends. Claim submissions take this lock so that
+     * limits (max claims, claims per IP) can't be exceeded by requests arriving at the same time.
+     */
+    public Optional<Airdrop> lockById(Connection conn, String airdropId) throws SQLException {
+        String sql = "SELECT " + COLUMNS + " FROM airdrops WHERE id = ? FOR UPDATE";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setObject(1, UUID.fromString(airdropId));
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(map(rs));
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    /** Opens or closes public claims. Only allowed while the airdrop is DRAFT. */
+    public boolean updateClaimSettings(String airdropId, String companyId, boolean open,
+                                       java.math.BigDecimal claimAmount, Integer maxClaims) throws SQLException {
+        String sql = "UPDATE airdrops SET claims_open = ?, claim_amount = COALESCE(?, claim_amount), max_claims = ? " +
+                "WHERE id = ? AND company_id = ? AND status = 'DRAFT'";
+        try (Connection conn = JdbcConnection.connect();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setBoolean(1, open);
+            stmt.setBigDecimal(2, claimAmount);
+            if (maxClaims == null) {
+                stmt.setNull(3, java.sql.Types.INTEGER);
+            } else {
+                stmt.setInt(3, maxClaims);
+            }
+            stmt.setObject(4, UUID.fromString(airdropId));
+            stmt.setObject(5, UUID.fromString(companyId));
+            return stmt.executeUpdate() == 1;
+        }
+    }
+
+    public void closeClaims(Connection conn, String airdropId) throws SQLException {
+        try (PreparedStatement stmt = conn.prepareStatement("UPDATE airdrops SET claims_open = FALSE WHERE id = ?")) {
+            stmt.setObject(1, UUID.fromString(airdropId));
+            stmt.executeUpdate();
+        }
     }
 
     public List<Airdrop> listByCompany(String companyId, int limit, int offset) throws SQLException {
@@ -132,7 +192,10 @@ public class AirdropRepository {
                 iso(rs.getTimestamp("created_at")),
                 iso(rs.getTimestamp("updated_at")),
                 iso(rs.getTimestamp("launched_at")),
-                iso(rs.getTimestamp("completed_at"))
+                iso(rs.getTimestamp("completed_at")),
+                rs.getBoolean("claims_open"),
+                rs.getBigDecimal("claim_amount") == null ? null : rs.getBigDecimal("claim_amount").stripTrailingZeros(),
+                (Integer) rs.getObject("max_claims")
         );
     }
 
