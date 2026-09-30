@@ -18,6 +18,7 @@ const AppLayout = lazy(() => import('@/components/layout/AppLayout'))
 const AirdropsPage = lazy(() => import('@/features/dashboard/AirdropsPage'))
 const CompanyPage = lazy(() => import('@/features/dashboard/CompanyPage'))
 const AirdropPage = lazy(() => import('@/features/airdrop/AirdropPage'))
+const AdminPage = lazy(() => import('@/features/admin/AdminPage'))
 
 const queryClient = new QueryClient({
   queryCache: new QueryCache({
@@ -56,6 +57,7 @@ const router = createBrowserRouter([
           { path: 'airdrops/:id', element: <AirdropPage /> },
         ],
       },
+      { path: '/admin', element: <AdminPage /> },
     ],
   },
   { path: '*', element: <NotFoundPage /> },

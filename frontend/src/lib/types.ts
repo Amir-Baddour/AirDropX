@@ -138,3 +138,47 @@ export interface SessionUser {
   pfp: string | null
   role?: { id: string; name: string } | string
 }
+
+// ---- platform admin ----
+export interface AdminStats {
+  users: number
+  companies: Record<'ACTIVE' | 'SUSPENDED', number>
+  airdrops: Record<AirdropStatus, number>
+  claims: Record<ClaimStatus, number>
+  recipients: Record<RecipientStatus, number>
+  claims_last_24h: number
+}
+
+export interface AdminCompany {
+  id: string
+  name: string
+  status: 'ACTIVE' | 'SUSPENDED'
+  owner_username: string | null
+  members: number
+  airdrops: number
+  claims: number
+  suspended_reason: string | null
+  suspended_at: string | null
+  created_at: string
+}
+
+export interface AdminAction {
+  id: number
+  admin_id: string
+  admin_username: string | null
+  action: string
+  target_type: string
+  target_id: string
+  detail: string | null
+  created_at: string
+}
+
+export interface PlatformEvent {
+  id: number
+  company_name: string
+  airdrop_id: string
+  airdrop_name: string
+  type: string
+  message: string
+  created_at: string
+}

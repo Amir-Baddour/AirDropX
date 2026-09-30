@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './api'
 import type {
+  AdminAction, AdminCompany, AdminStats, PlatformEvent,
   Airdrop, AirdropEvent, Claim, ClaimList, ClaimSettings, Company, PublicAirdrop,
   PublicClaimStatus, ClaimSubmitted, Recipient, Task, TaskType,
 } from './types'
@@ -163,3 +164,43 @@ export const usePublicClaim = (token: string) =>
       return 8000
     },
   })
+
+// ---- platform admin (SUPERADMIN only; 403 for everyone else) ----
+export const useAdminAccess = () =>
+  useQuery({ queryKey: ['admin', 'access'], queryFn: () => api.get<{ admin: boolean }>('/admin/access'), retry: false, staleTime: 5 * 60_000 })
+
+export const useAdminStats = () =>
+  useQuery({ queryKey: ['admin', 'stats'], queryFn: () => api.get<AdminStats>('/admin/stats'), refetchInterval: 30_000 })
+
+export const useAdminCompanies = (q: string, status: string) =>
+  useQuery({
+    queryKey: ['admin', 'companies', q, status],
+    queryFn: () => {
+      const params = new URLSearchParams({ limit: '200' })
+      if (q) params.set('q', q)
+      if (status) params.set('status', status)
+      return api.get<AdminCompany[]>(`/admin/companies?${params}`)
+    },
+    placeholderData: (prev) => prev,
+  })
+
+export const useAdminAudit = () =>
+  useQuery({ queryKey: ['admin', 'audit'], queryFn: () => api.get<AdminAction[]>('/admin/audit?limit=100') })
+
+export const useAdminActivity = () =>
+  useQuery({ queryKey: ['admin', 'activity'], queryFn: () => api.get<PlatformEvent[]>('/admin/activity?limit=30'), refetchInterval: 30_000 })
+
+export function useCompanyModeration() {
+  const qc = useQueryClient()
+  const done = () => qc.invalidateQueries({ queryKey: ['admin'] })
+  return {
+    suspend: useMutation({
+      mutationFn: ({ id, reason }: { id: string; reason: string }) => api.post(`/admin/companies/${id}/suspend`, { reason }),
+      onSuccess: done,
+    }),
+    restore: useMutation({
+      mutationFn: ({ id, note }: { id: string; note?: string }) => api.post(`/admin/companies/${id}/restore`, note ? { note } : {}),
+      onSuccess: done,
+    }),
+  }
+}

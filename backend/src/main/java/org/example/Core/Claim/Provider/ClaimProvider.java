@@ -11,6 +11,7 @@ import org.example.Core.Claim.Model.PublicClaimStatus;
 import org.example.Core.Task.Model.AirdropTask;
 import org.example.Infra.Persistence.Airdrop.AirdropRepository;
 import org.example.Infra.Persistence.Claim.ClaimRepository;
+import org.example.Infra.Persistence.Company.CompanyRepository;
 import org.example.Infra.Persistence.Task.TaskRepository;
 
 import java.util.List;
@@ -20,11 +21,13 @@ public class ClaimProvider {
     private final AirdropRepository airdropRepository;
     private final ClaimRepository claimRepository;
     private final TaskRepository taskRepository;
+    private final CompanyRepository companyRepository;
 
     public ClaimProvider() {
         this.airdropRepository = new AirdropRepository();
         this.claimRepository = new ClaimRepository();
         this.taskRepository = new TaskRepository();
+        this.companyRepository = new CompanyRepository();
     }
 
     public List<Claim> listClaims(String companyId, String airdropId, String status, int limit, int offset) throws Exception {
@@ -47,9 +50,13 @@ public class ClaimProvider {
 
     /** The public campaign: only visible while claims are open. */
     public Airdrop getOpenAirdrop(String airdropId) throws Exception {
-        return airdropRepository.findById(airdropId)
+        Airdrop airdrop = airdropRepository.findById(airdropId)
                 .filter(a -> a.claimsOpen() && a.status() == AirdropStatus.DRAFT)
                 .orElseThrow(() -> new AirdropNotFoundException("This airdrop is not accepting claims"));
+        if (!companyRepository.isActive(airdrop.companyId())) {
+            throw new AirdropNotFoundException("This airdrop is not accepting claims");
+        }
+        return airdrop;
     }
 
     public List<AirdropTask> getPublicTasks(String airdropId) throws Exception {

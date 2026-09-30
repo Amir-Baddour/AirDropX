@@ -5,11 +5,13 @@ export class ApiError extends Error {
   status: number
   errors: string[]
   code?: string
-  constructor(status: number, message: string, errors: string[] = [], code?: string) {
+  reason?: string | null
+  constructor(status: number, message: string, errors: string[] = [], code?: string, reason?: string | null) {
     super(message)
     this.status = status
     this.errors = errors
     this.code = code
+    this.reason = reason
   }
   get isAuth() {
     return this.code === 'AUTH'
@@ -19,7 +21,7 @@ export class ApiError extends Error {
 // The auth middleware halts with a plain-text code (not JSON) when the token is missing or bad.
 const AUTH_CODES = ['AUTH_REQUIRED', 'INVALID_TOKEN', 'EXPIRED_TOKEN']
 
-type Body = { success?: boolean; message?: string; data?: unknown; errors?: string[] }
+type Body = { success?: boolean; message?: string; data?: unknown; errors?: string[]; code?: string; reason?: string | null }
 
 function parseJson(text: string): Body | null {
   if (!text) return null
@@ -56,7 +58,7 @@ async function request<T>(method: Method, path: string, body?: unknown, auth = t
     if (res.status === 429) {
       throw new ApiError(429, json?.message ?? 'Too many requests. Wait a minute and try again.')
     }
-    throw new ApiError(res.status, json?.message ?? `Request failed (${res.status})`, json?.errors ?? [])
+    throw new ApiError(res.status, json?.message ?? `Request failed (${res.status})`, json?.errors ?? [], json?.code, json?.reason)
   }
   return (json?.data ?? json) as T
 }

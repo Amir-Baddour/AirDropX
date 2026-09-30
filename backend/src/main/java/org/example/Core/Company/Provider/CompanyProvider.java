@@ -1,6 +1,7 @@
 package org.example.Core.Company.Provider;
 
 import org.example.Core.Company.Exception.CompanyNotFoundException;
+import org.example.Core.Company.Exception.CompanySuspendedException;
 import org.example.Core.Company.Model.Company;
 import org.example.Infra.Persistence.Company.CompanyRepository;
 
@@ -16,7 +17,8 @@ public class CompanyProvider {
         Company company = companyRepository.findByUserId(userId)
                 .orElseThrow(() -> new CompanyNotFoundException("You don't belong to a company yet. Create one with POST /companies"));
         if (!"ACTIVE".equals(company.status())) {
-            throw new CompanyNotFoundException("Your company is " + company.status().toLowerCase());
+            throw new CompanySuspendedException("Your company has been suspended by the platform. Contact support.",
+                    companyRepository.findSuspendedReason(company.id()).orElse(null));
         }
         return company;
     }

@@ -10,6 +10,7 @@ import { ErrorBox, toastError } from '@/components/common/errors'
 import { useAirdrop, useAirdropAction, type LifecycleAction } from '@/lib/queries'
 import type { Airdrop } from '@/lib/types'
 import LifecycleStepper from './LifecycleStepper'
+import { Linkify } from '@/components/common/linkify'
 import OverviewTab from './OverviewTab'
 import RecipientsTab from './RecipientsTab'
 import TasksTab from './TasksTab'
@@ -45,9 +46,9 @@ export default function AirdropPage() {
             <AirdropStatusBadge status={airdrop.status} />
             {airdrop.claims_open && <span className="text-xs font-medium text-success">● Accepting claims</span>}
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 break-words text-sm text-muted-foreground">
             <span className="font-mono">{airdrop.token_symbol}</span>
-            {airdrop.description && <> · {airdrop.description}</>}
+            {airdrop.description && <> · <Linkify text={airdrop.description} /></>}
           </p>
         </div>
         <LifecycleActions airdrop={airdrop} />

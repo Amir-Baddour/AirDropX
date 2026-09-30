@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
-import { BookOpen, Building2, LayoutGrid, LogOut, Menu } from 'lucide-react'
+import { BookOpen, Building2, LayoutGrid, LogOut, Menu, ShieldCheck } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/misc'
@@ -8,9 +8,10 @@ import { Logo } from '@/components/common/logo'
 import { ThemeToggle } from '@/components/common/theme-toggle'
 import { ErrorBox } from '@/components/common/errors'
 import CompanyOnboarding from '@/features/dashboard/CompanyOnboarding'
+import CompanySuspended from '@/features/dashboard/CompanySuspended'
 import { useSession } from '@/lib/auth'
 import { ApiError } from '@/lib/api'
-import { useCompany } from '@/lib/queries'
+import { useAdminAccess, useCompany } from '@/lib/queries'
 import { clearSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
 
@@ -22,6 +23,7 @@ const nav = [
 
 export default function AppLayout() {
   const company = useCompany()
+  const isAdmin = useAdminAccess().isSuccess
   const { user } = useSession()
   const qc = useQueryClient()
   const navigate = useNavigate()
@@ -34,6 +36,8 @@ export default function AppLayout() {
   }
 
   const noCompany = company.error instanceof ApiError && company.error.status === 404
+  const suspended = company.error instanceof ApiError && company.error.code === 'COMPANY_SUSPENDED'
+  const links = isAdmin ? [...nav, { to: '/admin', label: 'Platform admin', icon: ShieldCheck, end: false }] : nav
 
   const sidebar = (
     <aside className="flex h-full w-60 flex-col border-r bg-card/50 px-3 py-4">
@@ -43,7 +47,7 @@ export default function AppLayout() {
         {company.isLoading ? <Skeleton className="mt-1 h-4 w-28" /> : <p className="truncate text-sm font-medium">{company.data?.name ?? '—'}</p>}
       </div>
       <nav className="mt-4 grid gap-0.5">
-        {nav.map(({ to, label, icon: Icon, end }) => (
+        {links.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
             to={to}
@@ -89,7 +93,9 @@ export default function AppLayout() {
           {company.isLoading ? (
             <div className="space-y-3"><Skeleton className="h-8 w-48" /><Skeleton className="h-40 w-full" /></div>
           ) : noCompany ? (
-            <CompanyOnboarding />
+            <CompanyOnboarding isAdmin={isAdmin} />
+          ) : suspended ? (
+            <CompanySuspended reason={(company.error as ApiError).reason ?? null} />
           ) : company.error ? (
             <ErrorBox error={company.error} />
           ) : (

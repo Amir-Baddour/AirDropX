@@ -11,6 +11,7 @@ import { usePublicAirdrop, useSubmitClaim } from '@/lib/queries'
 import type { ClaimSubmitted, PublicAirdrop, Task } from '@/lib/types'
 import { cn, formatAmount, isValidAddress } from '@/lib/utils'
 import PublicShell from './PublicShell'
+import { Linkify } from '@/components/common/linkify'
 
 type Answers = Record<string, unknown>
 
@@ -103,6 +104,11 @@ function ClaimFlow({ airdrop }: { airdrop: PublicAirdrop }) {
                 <p className={cn('mt-2 text-xs', address && !isValidAddress(address) ? 'text-destructive' : 'text-muted-foreground')}>
                   {address && !isValidAddress(address) ? 'That doesn\'t look like an EVM (0x…) or Solana address.' : 'One claim per wallet. Double-check it; payouts can\'t be redirected.'}
                 </p>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  No wallet yet?{' '}
+                  <a href="https://metamask.io/download/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Get MetaMask</a>
+                  {' '}(free, about a minute), then paste your Ethereum address here.
+                </p>
               </div>
             )}
           </motion.div>
@@ -140,7 +146,7 @@ function Intro({ airdrop }: { airdrop: PublicAirdrop }) {
     <div>
       <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Airdrop</p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">{airdrop.name}</h1>
-      {airdrop.description && <p className="mt-2 text-muted-foreground">{airdrop.description}</p>}
+      {airdrop.description && <p className="mt-2 text-muted-foreground"><Linkify text={airdrop.description} /></p>}
       <div className="mt-6 rounded-xl border border-foreground/10 bg-foreground/[.03] p-5 text-center">
         <p className="text-xs text-muted-foreground">You can earn</p>
         <p className="mt-1 text-4xl font-semibold tracking-tight">
@@ -170,7 +176,7 @@ function StepTitle({ icon, eyebrow, title, description }: { icon: React.ReactNod
       <div>
         <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">{eyebrow}</p>
         <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
-        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+        {description && <p className="mt-1 text-sm text-muted-foreground"><Linkify text={description} /></p>}
       </div>
     </div>
   )
@@ -225,9 +231,9 @@ function TaskStep({ task, index, total, value, onChange }: { task: Task; index: 
   return (
     <div>
       <StepTitle icon={<Icon />} eyebrow={eyebrow} title={task.title} description={task.description} />
-      <p className="mt-5 rounded-lg border border-foreground/10 bg-foreground/[.03] px-4 py-3 text-sm">{task.config.instructions}</p>
+      <p className="mt-5 rounded-lg border border-foreground/10 bg-foreground/[.03] px-4 py-3 text-sm"><Linkify text={task.config.instructions ?? ''} /></p>
       <Label htmlFor="proof" className="mt-6 block">Your proof</Label>
-      <Textarea id="proof" value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value)} placeholder="https://…" className="mt-2" maxLength={500} autoFocus />
+      <Textarea id="proof" value={(value as string) ?? ''} onChange={(e) => onChange(e.target.value)} placeholder="Type your answer or paste a link" className="mt-2" maxLength={500} autoFocus />
       <p className="mt-2 text-xs text-muted-foreground">The team reviews this by hand. You'll see the result on your status page.</p>
     </div>
   )

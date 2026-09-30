@@ -1,4 +1,5 @@
 package org.example;
+import org.example.Api.Admin.AdminApi;
 import org.example.Api.Airdrop.AirdropApi;
 import org.example.Api.Claim.ClaimApi;
 import org.example.Api.Company.CompanyApi;
@@ -121,6 +122,7 @@ public class Main {
             new AirdropApi().initializeRoutes();
             new ClaimApi().initializeRoutes();
             new PublicClaimApi().initializeRoutes();
+            new AdminApi().initializeRoutes();
             get("/health", (req, res) -> {
                 res.type("text/plain");
                 return "OK";
