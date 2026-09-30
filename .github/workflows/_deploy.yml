@@ -46,7 +46,8 @@ jobs:
           printf '%s\n' "$DB_ENV_FILE"  | ssh "$TARGET" "umask 077 && cat > $DIR/db.env"
 
       - name: Start / update the HTTPS proxy
-        run: ssh "$TARGET" "cd /opt/airdropx/proxy && docker compose up -d"
+        # 'up -d' starts it the first time; 'reload' applies a changed Caddyfile without downtime
+        run: ssh "$TARGET" "cd /opt/airdropx/proxy && docker compose up -d && sleep 2 && docker exec airdropx-caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile"
 
       - name: Log the server into GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | ssh "$TARGET" "docker login ghcr.io -u ${{ github.actor }} --password-stdin"
@@ -63,6 +64,15 @@ jobs:
             echo "waiting for ${{ inputs.health_url }} ($i/20)"; sleep 6
           done
           echo "Smoke test FAILED"; exit 1
+
+      - name: Smoke test the frontend
+        run: |
+          base="$(dirname "${{ inputs.health_url }}")"
+          for path in / /app /claim/test; do
+            code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$base$path")"
+            echo "$path -> $code"
+            [ "$code" = "200" ] || { echo "::warning::frontend $path returned $code"; }
+          done
 
       - name: Summary
         if: always()

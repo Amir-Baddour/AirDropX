@@ -1,15 +1,38 @@
+# Dependabot: GitHub opens a pull request automatically when a dependency has an update or security fix.
+# Each pull request runs through CI before anything is merged.
 version: 2
 updates:
+  # Java libraries in backend/pom.xml
   - package-ecosystem: maven
     directory: /backend
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+
+  # Base images in backend/Dockerfile
   - package-ecosystem: docker
     directory: /backend
     schedule:
       interval: weekly
+
+  # Actions used in .github/workflows
   - package-ecosystem: github-actions
     directory: /
+    schedule:
+      interval: weekly
+
+  # Frontend packages in frontend/package.json (minor + patch grouped into one PR)
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      frontend-minor:
+        update-types: [minor, patch]
+
+  # Base images in frontend/Dockerfile
+  - package-ecosystem: docker
+    directory: /frontend
     schedule:
       interval: weekly

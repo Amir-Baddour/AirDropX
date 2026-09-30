@@ -1,7 +1,7 @@
 name: CD
 
 # Starts automatically after CI succeeds on main.
-# Build the image once, deploy it to production, health-check it, roll back automatically if it fails.
+# Build the API and frontend images once, deploy them to production, health-check it, roll back automatically if it fails.
 on:
   workflow_run:
     workflows: [CI]
@@ -50,6 +50,19 @@ jobs:
             ${{ steps.meta.outputs.image }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Build & push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          build-args: |
+            VITE_GOOGLE_CLIENT_ID=${{ vars.GOOGLE_CLIENT_ID }}
+          tags: |
+            ${{ steps.meta.outputs.image }}-web:${{ steps.meta.outputs.tag }}
+            ${{ steps.meta.outputs.image }}-web:latest
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
 
   production:
     name: Deploy to production
