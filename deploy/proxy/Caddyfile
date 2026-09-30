@@ -1,8 +1,38 @@
 # No domain yet: sslip.io maps "64-23-156-149.sslip.io" to 64.23.156.149,
 # so Caddy can still get a real Let's Encrypt HTTPS certificate.
 # When you buy a domain, replace this hostname and redeploy.
+#
+# One domain for everything:
+#   /api/*   -> Spark API (the /api prefix is removed)
+#   /health  -> Spark API (uptime checks, CD smoke test)
+#   anything else -> frontend container (React app)
 
 64-23-156-149.sslip.io {
-	encode gzip
-	reverse_proxy airdropx-production-api:8080
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	handle /health {
+		reverse_proxy airdropx-production-api:8080
+	}
+
+	handle /api/* {
+		uri strip_prefix /api
+		# Google sign-in: the backend picks its OAuth redirect URI from the Origin header and falls back
+		# to OAUTH_REDIRECT_URI when there is none. Dropping Origin here makes it use our own domain.
+		@auth path /auth/*
+		request_header @auth -Origin
+		reverse_proxy airdropx-production-api:8080
+	}
+
+	handle {
+		reverse_proxy airdropx-production-web:80
+	}
 }

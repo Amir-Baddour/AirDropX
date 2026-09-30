@@ -1,4 +1,4 @@
-# AirdropX API + its own PostgreSQL.
+# AirdropX API + frontend + PostgreSQL.
 # The deploy script sets APP_ENV (production), IMAGE and IMAGE_TAG.
 # Memory limits keep everything inside a 1 GB droplet.
 name: airdropx-${APP_ENV:?set APP_ENV}
@@ -23,6 +23,18 @@ services:
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "5" }
+
+  web:
+    # React app, built by CD from ./frontend and served by a small Caddy on port 80 (HTTP; the edge proxy does HTTPS)
+    image: ${IMAGE}-web:${IMAGE_TAG}
+    container_name: airdropx-${APP_ENV}-web
+    restart: unless-stopped
+    mem_limit: 48m
+    networks:
+      - edge       # reachable by the edge Caddy only
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "3" }
 
   db:
     image: postgres:16-alpine

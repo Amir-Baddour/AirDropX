@@ -7,17 +7,20 @@
 
 Multi-tenant airdrop campaign platform (Web2, mocked payouts). Companies register, build an airdrop, and publish it as a public campaign page on DigitalOcean Spaces.
 
-**Live:** https://64-23-156-149.sslip.io/health
+**Live:** https://64-23-156-149.sslip.io · API health: https://64-23-156-149.sslip.io/health
+
+---
 
 ## What's inside
 
 | Layer | Technology |
 |---|---|
+| Frontend | React 19 · TypeScript · Vite · Tailwind CSS 4 · shadcn/ui-style components · TanStack Query & Table · react-hook-form + zod · Motion |
 | Backend | Java 17 · Spark Java · raw JDBC · layered architecture (Api / Core / Infra / Middleware) |
 | Database | PostgreSQL 16 |
 | Auth | Google OAuth → JWT, role-based access |
 | Storage | DigitalOcean Spaces (S3-compatible) |
-| Packaging | Docker (multi-stage build, healthcheck) |
+| Packaging | Docker (multi-stage build, non-root, healthcheck) |
 | CI/CD | GitHub Actions → GitHub Container Registry → DigitalOcean droplet |
 | Edge | Caddy reverse proxy with automatic HTTPS |
 
@@ -31,7 +34,8 @@ flowchart LR
     CD --> GHCR[(GHCR image)]
     CD -->|approval + SSH| VPS
     subgraph VPS[DigitalOcean droplet]
-        Caddy[Caddy HTTPS] --> API[Spark API]
+        Caddy[Caddy HTTPS] -->|/api| API[Spark API]
+        Caddy -->|/| WEB[React app]
         API --> DB[(PostgreSQL)]
     end
     User[Company / Admin] -->|HTTPS| Caddy
@@ -43,23 +47,29 @@ flowchart LR
 
 | Stage | When | What it does |
 |---|---|---|
-| CI | every pull request and push | mvn verify · gitleaks secret scan · Trivy dependency scan · Docker build check |
-| Build image | after CI passes on main | builds once, tags with the commit SHA, pushes to GHCR |
-| Deploy | after manual approval | SSH to the server, writes secrets from GitHub, starts the new container |
-| Health check | during deploy | waits for /health and rolls back automatically if unhealthy |
-| Smoke test | after deploy | checks the live HTTPS URL |
-| Rollback | manual button | redeploys any previous image tag |
+| **CI** | every pull request and push | `mvn verify` · frontend lint, type-check, tests and build · gitleaks secret scan · Trivy dependency scan · Docker build check (API + frontend) |
+| **Build images** | after CI passes on `main` | builds the API and frontend images once, tags them with the commit SHA, pushes to GHCR |
+| **Deploy** | after manual approval | SSH to the server, writes secrets from GitHub, starts the new container |
+| **Health check** | during deploy | waits for `/health`; **rolls back automatically** if the new version is unhealthy |
+| **Smoke test** | after deploy | checks the live HTTPS URL |
+| **Rollback** | manual button | redeploys any previous image tag |
 
-Plus **Dependabot** (weekly update PRs, each tested by CI) and a **protected main branch** (pull requests + passing CI required).
+Plus:
+- **Dependabot** opens weekly update PRs for Maven, Docker and GitHub Actions. Each PR goes through CI first.
+- **Protected `main`**: changes go through pull requests, and CI must pass before merging.
 
 ## Security
 
 - Secrets live only in GitHub Environment secrets and are written to the server at deploy time. They are never in the repo.
-- Deploys run as a dedicated SSH-key-only deploy user.
+- Deploy runs as a dedicated SSH-key-only `deploy` user.
 - Firewall allows only 22 / 80 / 443. The database has no public port.
-- Containers are memory-limited and run as non-root users.
+- Containers are memory-limited; the app container runs as a non-root user.
 
 ## Run locally
+
+```bash
+cd frontend && npm install && npm run dev     # http://localhost:5173, /api is proxied to :8080
+```
 
 ```bash
 cd backend
@@ -68,25 +78,34 @@ mvn package
 java -jar target/*.jar
 ```
 
+Or with Docker:
+```bash
+docker build -t airdropx ./backend
+docker run --env-file backend/.env -p 8080:8080 airdropx
+```
+
 ## Repository layout
 
 ```
-backend/     Java backend (Spark + JDBC) and its Dockerfile
-deploy/      server files: compose, Caddy, deploy + setup scripts
-.github/     CI, CD, rollback workflows and Dependabot
-DEPLOY.md    step-by-step server and GitHub setup
+frontend/         React app (dashboard + public claim pages) and its Dockerfile
+backend/          Java backend (Spark + JDBC) and its Dockerfile
+deploy/           server-side files: compose, Caddy, deploy + setup scripts
+.github/          CI, CD, rollback workflows and Dependabot
+DEPLOY.md         step-by-step server and GitHub setup
 ```
 
 ## My contribution
 
-The backend architecture was designed by an experienced backend engineer. I designed and built everything that takes it to production:
+The backend architecture was designed by an experienced backend engineer. **I designed and built everything that takes it to production:**
 
-- Containerized the backend (multi-stage Dockerfile, healthcheck)
+- Containerized the backend (multi-stage Dockerfile, healthcheck, non-root user)
 - Built the CI pipeline: build, secret scanning, vulnerability scanning, image build
 - Built the CD pipeline: GHCR registry, approval-gated production deploy, health checks, automatic and manual rollback
-- Provisioned and hardened the DigitalOcean server: firewall, deploy user, swap, log rotation
-- Set up HTTPS with Caddy, private database networking and secret management
+- Provisioned and hardened the DigitalOcean server: firewall, deploy user, swap, Docker log rotation
+- Set up HTTPS with Caddy, private networking for the database, and secret management
 - Enabled Dependabot and branch protection
+- Built the airdrop, claim and verification features on top of the existing architecture
+- Designed and built the React frontend: company dashboard and glass-style public claim pages
 
 ## Author
 

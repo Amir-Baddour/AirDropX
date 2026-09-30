@@ -133,5 +133,28 @@ cat /opt/airdropx/production/.current_tag    # deployed version
 free -h                                      # memory
 ```
 
+## 6. Frontend + Google sign-in
+The React app (`frontend/`) is built by CD into `ghcr.io/amir-baddour/airdropx-web:<sha>` and served on the same domain:
+
+| URL | Goes to |
+|---|---|
+| `https://64-23-156-149.sslip.io/api/...` | Spark API (`/api` is removed) |
+| `https://64-23-156-149.sslip.io/health` | Spark API |
+| everything else | the frontend container |
+
+Same domain means no CORS setup is needed.
+
+**Sign in before Google is set up:** on the server run `bash dev-token.sh` (prints a 24-hour token for `demo-user`), then on the login page open *Developer: sign in with an access token* and paste it.
+
+**Google sign-in (once):**
+1. Google Cloud console → APIs & Services → Credentials → *Create OAuth client ID* → Web application.
+2. Authorized JavaScript origin: `https://64-23-156-149.sslip.io`
+   Authorized redirect URI: `https://64-23-156-149.sslip.io/auth/callback`
+3. GitHub → Settings → Secrets and variables → Actions → **Variables** → `GOOGLE_CLIENT_ID` = the client ID (public, not a secret).
+4. Edit the `APP_ENV_FILE` environment secret (production): set `CLIENT_ID`, `CLIENT_SECRET`, and `OAUTH_REDIRECT_URI=https://64-23-156-149.sslip.io/auth/callback`.
+5. Re-run CD (or push any commit).
+
+The edge Caddy removes the `Origin` header on `/api/auth/*`, so the backend uses `OAUTH_REDIRECT_URI` without any backend change.
+
 ## Note for the backend owner (no change made)
-The backend's CORS allow-list in `backend/src/main/java/org/example/Main.java` only contains `localhost:5173` and the `l1-portal` Vercel URLs. If the AirdropX frontend is served from another origin, that list will need the new URL. That's the backend owner's call.
+The backend's CORS allow-list in `backend/src/main/java/org/example/Main.java` only contains `localhost:5173` and the `l1-portal` Vercel URLs. The AirdropX frontend is served from the same domain as the API, so it doesn't need CORS. The list only matters if the frontend is ever hosted on another domain.
