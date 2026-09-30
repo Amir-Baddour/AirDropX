@@ -10,6 +10,7 @@ import { ErrorBox, toastError } from '@/components/common/errors'
 import { useDeleteTask, useTasks } from '@/lib/queries'
 import type { Airdrop, Task, TaskType } from '@/lib/types'
 import AddTaskDialog from './AddTaskDialog'
+import { Linkify } from '@/components/common/linkify'
 
 export const TASK_META: Record<TaskType, { label: string; icon: typeof KeyRound; blurb: string }> = {
   QUIZ: { label: 'Quiz', icon: BrainCircuit, blurb: 'Multiple-choice questions, checked instantly' },
@@ -70,7 +71,7 @@ function TaskCard({ task, index, locked, onDelete }: { task: Task; index: number
           <Badge tone="neutral">{meta.label}</Badge>
           {task.auto_verified ? <Badge tone="success"><CheckCircle2 className="size-3" /> Auto-verified</Badge> : <Badge tone="warning">Manual review</Badge>}
         </div>
-        {task.description && <p className="mt-1 text-sm text-muted-foreground">{task.description}</p>}
+        {task.description && <p className="mt-1 text-sm text-muted-foreground"><Linkify text={task.description} /></p>}
         <div className="mt-2 text-sm">
           {task.type === 'QUIZ' && (
             <ol className="list-decimal space-y-1 pl-5 text-muted-foreground">
@@ -82,7 +83,7 @@ function TaskCard({ task, index, locked, onDelete }: { task: Task; index: number
           {task.type === 'SECRET_CODE' && (
             <p className="text-muted-foreground">Code stored as a hash only{task.config.hint && <> · hint: “{task.config.hint}”</>}</p>
           )}
-          {task.type === 'MANUAL_PROOF' && <p className="text-muted-foreground">{task.config.instructions}</p>}
+          {task.type === 'MANUAL_PROOF' && <p className="text-muted-foreground"><Linkify text={task.config.instructions ?? ''} /></p>}
         </div>
       </div>
       {!locked && (

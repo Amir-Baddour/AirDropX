@@ -69,6 +69,32 @@ public class CompanyRepository {
         return Optional.empty();
     }
 
+    /** Used by public pages and the worker: a suspended company's airdrops are frozen. */
+    public boolean isActive(String companyId) throws SQLException {
+        try (Connection conn = JdbcConnection.connect()) {
+            return isActive(conn, companyId);
+        }
+    }
+
+    public boolean isActive(Connection conn, String companyId) throws SQLException {
+        try (PreparedStatement stmt = conn.prepareStatement("SELECT status FROM companies WHERE id = ?")) {
+            stmt.setObject(1, UUID.fromString(companyId));
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next() && "ACTIVE".equals(rs.getString(1));
+            }
+        }
+    }
+
+    public Optional<String> findSuspendedReason(String companyId) throws SQLException {
+        try (Connection conn = JdbcConnection.connect();
+             PreparedStatement stmt = conn.prepareStatement("SELECT suspended_reason FROM companies WHERE id = ?")) {
+            stmt.setObject(1, UUID.fromString(companyId));
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next() ? Optional.ofNullable(rs.getString(1)) : Optional.empty();
+            }
+        }
+    }
+
     private Company map(ResultSet rs) throws SQLException {
         return new Company(
                 rs.getString("id"),

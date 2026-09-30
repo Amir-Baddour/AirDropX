@@ -1,7 +1,8 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Building2 } from 'lucide-react'
+import { Link } from 'react-router'
+import { Building2, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -11,7 +12,7 @@ import { useCreateCompany } from '@/lib/queries'
 
 const schema = z.object({ name: z.string().trim().min(2, 'At least 2 characters').max(150) })
 
-export default function CompanyOnboarding() {
+export default function CompanyOnboarding({ isAdmin = false }: { isAdmin?: boolean }) {
   const create = useCreateCompany()
   const form = useForm<z.infer<typeof schema>>({ resolver: zodResolver(schema), defaultValues: { name: '' } })
   return (
@@ -29,6 +30,9 @@ export default function CompanyOnboarding() {
           </form>
         </CardContent>
       </Card>
+      {isAdmin && (
+        <Button variant="link" asChild className="mt-4 px-0"><Link to="/admin"><ShieldCheck /> Go to platform admin instead</Link></Button>
+      )}
     </div>
   )
 }

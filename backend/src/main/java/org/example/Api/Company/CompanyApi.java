@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import org.example.Core.Company.Creator.CompanyCreator;
 import org.example.Core.Company.Exception.CompanyAlreadyExistsException;
 import org.example.Core.Company.Exception.CompanyNotFoundException;
+import org.example.Core.Company.Exception.CompanySuspendedException;
 import org.example.Core.Company.Model.Company;
 import org.example.Core.Company.Provider.CompanyProvider;
 import org.example.Middleware.AuthorizationMiddleware;
@@ -58,6 +59,11 @@ public class CompanyApi {
                 return ok("Company retrieved", toJson(companyProvider.getCompanyOfUser(userId)));
             } catch (HaltException e) {
                 throw e;
+            } catch (CompanySuspendedException e) {
+                JsonObject response = error(res, 403, e.getMessage());
+                response.addProperty("code", "COMPANY_SUSPENDED");
+                response.addProperty("reason", e.getReason());
+                return response;
             } catch (CompanyNotFoundException e) {
                 return error(res, 404, e.getMessage());
             } catch (Exception e) {

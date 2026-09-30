@@ -120,7 +120,8 @@ public class RecipientRepository {
                 WHERE id IN (
                     SELECT r.id FROM airdrop_recipients r
                     JOIN airdrops a ON a.id = r.airdrop_id
-                    WHERE r.status = 'PENDING' AND a.status = 'PROCESSING'
+                    JOIN companies c ON c.id = a.company_id
+                    WHERE r.status = 'PENDING' AND a.status = 'PROCESSING' AND c.status = 'ACTIVE'
                     ORDER BY r.created_at
                     LIMIT ?
                     FOR UPDATE OF r SKIP LOCKED)

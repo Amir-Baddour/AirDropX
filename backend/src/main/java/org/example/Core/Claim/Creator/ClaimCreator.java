@@ -23,6 +23,7 @@ import org.example.Infra.Persistence.Airdrop.AirdropEventRepository;
 import org.example.Infra.Persistence.Airdrop.AirdropRepository;
 import org.example.Infra.Persistence.Airdrop.RecipientRepository;
 import org.example.Infra.Persistence.Claim.ClaimRepository;
+import org.example.Infra.Persistence.Company.CompanyRepository;
 import org.example.Infra.Persistence.Task.TaskRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +45,7 @@ public class ClaimCreator {
     private final RecipientRepository recipientRepository;
     private final AirdropEventRepository eventRepository;
     private final TaskVerifierRegistry registry;
+    private final CompanyRepository companyRepository;
 
     public ClaimCreator() {
         this.airdropRepository = new AirdropRepository();
@@ -52,6 +54,7 @@ public class ClaimCreator {
         this.recipientRepository = new RecipientRepository();
         this.eventRepository = new AirdropEventRepository();
         this.registry = new TaskVerifierRegistry();
+        this.companyRepository = new CompanyRepository();
     }
 
     public ClaimSubmission submit(String airdropId, String address, JsonObject answers, String clientIp) throws Exception {
@@ -68,6 +71,9 @@ public class ClaimCreator {
                 Airdrop airdrop = airdropRepository.lockById(conn, airdropId)
                         .filter(a -> a.claimsOpen() && a.status() == AirdropStatus.DRAFT)
                         .orElseThrow(() -> new AirdropNotFoundException("This airdrop is not accepting claims"));
+                if (!companyRepository.isActive(conn, airdrop.companyId())) {
+                    throw new AirdropNotFoundException("This airdrop is not accepting claims");
+                }
 
                 List<AirdropTask> tasks = taskRepository.listByAirdrop(conn, airdropId);
                 List<TaskResult> results = verifyAll(tasks, answers);

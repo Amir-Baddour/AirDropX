@@ -31,6 +31,8 @@ public class DatabaseMigration {
             createAirdropTasksTable(connection);
             createClaimsTable(connection);
             createClaimTaskResultsTable(connection);
+            addCompanySuspensionColumns(connection);
+            createAdminAuditLogTable(connection);
             logger.info("Table creation sequence completed successfully");
         } catch (SQLException e) {
             logger.error("Migration failed: {}", e.getMessage());
@@ -51,6 +53,7 @@ public class DatabaseMigration {
         logger.info("Dropping existing tables...");
         try (Statement stmt = connection.createStatement()) {
             String[] dropStatements = {
+                    "DROP TABLE IF EXISTS admin_audit_log CASCADE",
                     "DROP TABLE IF EXISTS claim_task_results CASCADE",
                     "DROP TABLE IF EXISTS claims CASCADE",
                     "DROP TABLE IF EXISTS airdrop_tasks CASCADE",
@@ -470,6 +473,31 @@ public class DatabaseMigration {
                 ")";
         try (Statement stmt = connection.createStatement()) {
             stmt.execute(sql);
+        }
+    }
+    private static void addCompanySuspensionColumns(Connection connection) throws SQLException {
+        String sql = "ALTER TABLE companies " +
+                "ADD COLUMN IF NOT EXISTS suspended_reason TEXT, " +
+                "ADD COLUMN IF NOT EXISTS suspended_at TIMESTAMP WITH TIME ZONE";
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute(sql);
+        }
+    }
+    private static void createAdminAuditLogTable(Connection connection) throws SQLException {
+        String sql = "CREATE TABLE IF NOT EXISTS admin_audit_log (" +
+                "id BIGSERIAL PRIMARY KEY, " +
+                "admin_id UUID NOT NULL, " +
+                "action VARCHAR(40) NOT NULL, " +
+                "target_type VARCHAR(40) NOT NULL, " +
+                "target_id VARCHAR(64) NOT NULL, " +
+                "detail TEXT, " +
+                "created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, " +
+                "CONSTRAINT fk_audit_admin FOREIGN KEY (admin_id) REFERENCES users(id)" +
+                ")";
+        String createIndexes = "CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON admin_audit_log(created_at DESC)";
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute(sql);
+            stmt.execute(createIndexes);
         }
     }
     private static boolean tableExists(Connection connection, String tableName) throws SQLException {
