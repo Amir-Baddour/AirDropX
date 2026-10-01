@@ -67,7 +67,7 @@ public class GoogleAuthService {
                 URLEncoder.encode(clientSecret, StandardCharsets.UTF_8),
                 URLEncoder.encode(redirectUri, StandardCharsets.UTF_8)
         );
-        logger.info("Post Data: {}", postData);
+        logger.info("Exchanging Google authorization code for tokens (redirect URI: {})", redirectUri);
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(GOOGLE_TOKEN_URL))
                 .header("Content-Type", "application/x-www-form-urlencoded")
