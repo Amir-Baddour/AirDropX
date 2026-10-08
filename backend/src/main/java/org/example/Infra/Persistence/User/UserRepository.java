@@ -66,7 +66,7 @@ public class UserRepository {
         }
     }
     public void updateUser(String userId, String username, String pfp, String address) throws SQLException {
-        String sql = "UPDATE users SET username = ?, pfp = ?, address = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+        String sql = "UPDATE users SET username = ?, pfp = ?, address = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?::uuid";
         try (Connection conn = JdbcConnection.connect();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, username);
