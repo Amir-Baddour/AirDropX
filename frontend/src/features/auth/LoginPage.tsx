@@ -1,13 +1,22 @@
 import { useState } from 'react'
-import { Navigate, useNavigate, useSearchParams } from 'react-router'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router'
 import { KeyRound } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/input'
+import { Input, Textarea } from '@/components/ui/input'
+import { Field } from '@/components/ui/label'
+import { toastError } from '@/components/common/errors'
+import { api, ApiError } from '@/lib/api'
 import { GlowBackground } from '@/components/common/glow-background'
 import { Logo } from '@/components/common/logo'
 import { GOOGLE_CLIENT_ID, startGoogleLogin, useSession } from '@/lib/auth'
 import { saveSession } from '@/lib/session'
+import type { SessionUser } from '@/lib/types'
+
+interface LoginResponse extends SessionUser {
+  display_name?: string
+  token?: { access_token: string; expires_at: string | number }
+}
 
 function GoogleIcon() {
   return (
@@ -35,7 +44,33 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const [showToken, setShowToken] = useState(false)
   const [token, setToken] = useState('')
+  const [email, setEmail] = useState(params.get('email') ?? '')
+  const [password, setPassword] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+  const justRegistered = params.get('registered') === '1'
   const returnTo = params.get('next') ?? '/app'
+
+  async function signInWithEmail(e: React.FormEvent) {
+    e.preventDefault()
+    setFormError(null)
+    setSubmitting(true)
+    try {
+      const user = await api.post<LoginResponse>('/auth/login', { email: email.trim(), password }, false)
+      if (!user.token?.access_token) throw new ApiError(500, 'The server did not return a session')
+      saveSession(
+        user.token.access_token,
+        { id: user.id, username: user.username, displayName: user.display_name, pfp: user.pfp, role: user.role },
+        user.token.expires_at,
+      )
+      navigate(returnTo, { replace: true })
+    } catch (err) {
+      if (err instanceof ApiError && (err.status === 401 || err.status === 429 || err.status === 400)) setFormError(err.message)
+      else toastError(err, 'Sign-in failed')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   if (isAuthenticated) return <Navigate to={returnTo} replace />
 
@@ -47,8 +82,29 @@ export default function LoginPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Sign in</h1>
         <p className="mt-1 text-sm text-muted-foreground">Manage your company's airdrops, tasks and claims.</p>
 
+        {justRegistered && (
+          <p className="mt-4 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600 dark:text-emerald-400">
+            Account created. Sign in to continue.
+          </p>
+        )}
+
+        <form className="mt-6 grid gap-4" onSubmit={signInWithEmail}>
+          <Field label="Email" htmlFor="login-email">
+            <Input id="login-email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoFocus={!email} />
+          </Field>
+          <Field label="Password" htmlFor="login-password">
+            <Input id="login-password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} autoFocus={!!email} />
+          </Field>
+          {formError && <p role="alert" className="text-sm text-destructive">{formError}</p>}
+          <Button type="submit" loading={submitting}>Sign in</Button>
+        </form>
+
+        <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
+          <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
+        </div>
+
         <Button
-          className="mt-8 w-full bg-white text-zinc-900 hover:bg-zinc-100"
+          className="w-full bg-white text-zinc-900 hover:bg-zinc-100"
           size="lg"
           disabled={!GOOGLE_CLIENT_ID}
           onClick={() => startGoogleLogin(returnTo)}
@@ -58,6 +114,10 @@ export default function LoginPage() {
         {!GOOGLE_CLIENT_ID && (
           <p className="mt-2 text-center text-xs text-muted-foreground">Google sign-in isn't configured on this server yet.</p>
         )}
+
+        <p className="mt-6 text-center text-sm text-muted-foreground">
+          New here? <Link to="/register" className="text-foreground underline-offset-4 hover:underline">Create an account</Link>
+        </p>
 
         <div className="mt-6 border-t pt-4">
           <button

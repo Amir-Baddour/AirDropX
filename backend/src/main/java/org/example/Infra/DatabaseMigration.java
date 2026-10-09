@@ -20,6 +20,7 @@ public class DatabaseMigration {
             createRolesTable(connection);
             createUsersTable(connection);
             createUserTokensTable(connection);
+            addUserAccountColumns(connection);
             createNetworksTable(connection);
             createNetworkInitialSupply(connection);
             createNetworkInstructionsTable(connection);
@@ -133,6 +134,25 @@ public class DatabaseMigration {
                 logger.info("Creating trigger function and trigger for table {}", tableName);
                 stmt.execute(triggerFunction);
                 stmt.execute(trigger);
+            }
+        }
+    }
+    /** Email/password accounts and profile fields. Safe to run on every start (IF NOT EXISTS). */
+    private static void addUserAccountColumns(Connection connection) throws SQLException {
+        String[] statements = {
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(254)",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255)",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(100)",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(100)",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(30)",
+                // Email/password users use their email as the username, which can be longer than 50 characters
+                "ALTER TABLE users ALTER COLUMN username TYPE VARCHAR(254)",
+                // Unique per email for email/password accounts only: Google accounts keep working as before
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_local_email ON users (LOWER(email)) WHERE provider = 'LOCAL'"
+        };
+        try (Statement stmt = connection.createStatement()) {
+            for (String sql : statements) {
+                stmt.execute(sql);
             }
         }
     }

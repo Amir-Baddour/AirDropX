@@ -65,6 +65,20 @@ Plus:
 - Firewall allows only 22 / 80 / 443. The database has no public port.
 - Containers are memory-limited; the app container runs as a non-root user.
 
+## Accounts and profile
+
+Two ways to sign in, both ending in the same 24-hour JWT:
+
+- **Google**: OAuth authorization-code flow.
+- **Email and password**: register, then sign in on the login page, then the dashboard. Passwords are hashed with
+  PBKDF2-HMAC-SHA256 (600,000 iterations, random salt, constant-time compare) using only the JDK. Login answers
+  "Invalid email or password" for both an unknown email and a wrong password, runs one hash check either way so
+  the timing does not reveal which emails exist, and is rate limited per IP and per email.
+
+The **Profile** page (`/app/profile`) edits first name, last name, phone and address for any account, and
+changes the password for email accounts. Endpoints: `POST /auth/register`, `POST /auth/login`,
+`GET|PUT /user/profile`, `PUT /user/password`.
+
 ## Run locally
 
 ```bash

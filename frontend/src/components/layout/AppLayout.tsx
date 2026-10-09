@@ -1,6 +1,6 @@
-import { NavLink, Outlet, useNavigate } from 'react-router'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
-import { BookOpen, Building2, LayoutGrid, LogOut, Menu, ShieldCheck } from 'lucide-react'
+import { BookOpen, Building2, LayoutGrid, LogOut, Menu, ShieldCheck, UserRound } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/misc'
@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils'
 const nav = [
   { to: '/app', label: 'Airdrops', icon: LayoutGrid, end: true },
   { to: '/app/company', label: 'Company', icon: Building2 },
+  { to: '/app/profile', label: 'Profile', icon: UserRound },
   { to: '/docs', label: 'How it works', icon: BookOpen },
 ]
 
@@ -27,6 +28,7 @@ export default function AppLayout() {
   const { user } = useSession()
   const qc = useQueryClient()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const [open, setOpen] = useState(false)
 
   const signOut = () => {
@@ -37,6 +39,9 @@ export default function AppLayout() {
 
   const noCompany = company.error instanceof ApiError && company.error.status === 404
   const suspended = company.error instanceof ApiError && company.error.code === 'COMPANY_SUSPENDED'
+  // Your own profile stays reachable before you create a company, or while the company is suspended.
+  const onProfile = pathname === '/app/profile'
+  const label = user?.displayName || user?.username
   const links = isAdmin ? [...nav, { to: '/admin', label: 'Platform admin', icon: ShieldCheck, end: false }] : nav
 
   const sidebar = (
@@ -66,9 +71,9 @@ export default function AppLayout() {
       </nav>
       <div className="mt-auto flex items-center gap-2 border-t pt-3">
         <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-xs font-semibold uppercase">
-          {user?.pfp ? <img src={user.pfp} alt="" className="size-full object-cover" referrerPolicy="no-referrer" /> : user?.username?.[0] ?? '?'}
+          {user?.pfp ? <img src={user.pfp} alt="" className="size-full object-cover" referrerPolicy="no-referrer" /> : label?.[0] ?? '?'}
         </div>
-        <p className="min-w-0 flex-1 truncate text-sm">{user?.username}</p>
+        <p className="min-w-0 flex-1 truncate text-sm">{label}</p>
         <ThemeToggle />
         <Button variant="ghost" size="icon" onClick={signOut} aria-label="Sign out"><LogOut /></Button>
       </div>
@@ -90,7 +95,9 @@ export default function AppLayout() {
           <Logo to="/app" />
         </header>
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 md:px-8 md:py-8">
-          {company.isLoading ? (
+          {onProfile ? (
+            <Outlet />
+          ) : company.isLoading ? (
             <div className="space-y-3"><Skeleton className="h-8 w-48" /><Skeleton className="h-40 w-full" /></div>
           ) : noCompany ? (
             <CompanyOnboarding isAdmin={isAdmin} />

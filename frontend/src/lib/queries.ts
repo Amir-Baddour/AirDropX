@@ -3,7 +3,7 @@ import { api } from './api'
 import type {
   AdminAction, AdminCompany, AdminStats, PlatformEvent,
   Airdrop, AirdropEvent, Claim, ClaimList, ClaimSettings, Company, PublicAirdrop,
-  PublicClaimStatus, ClaimSubmitted, Recipient, Task, TaskType,
+  PublicClaimStatus, ClaimSubmitted, Profile, Recipient, Task, TaskType,
 } from './types'
 
 export const keys = {
@@ -16,6 +16,7 @@ export const keys = {
   claims: (id: string, status?: string) => ['airdrop', id, 'claims', status ?? 'all'] as const,
   publicAirdrop: (id: string) => ['public', 'airdrop', id] as const,
   publicClaim: (token: string) => ['public', 'claim', token] as const,
+  profile: ['profile'] as const,
 }
 
 // ---- company ----
@@ -204,3 +205,18 @@ export function useCompanyModeration() {
     }),
   }
 }
+
+// ---- profile ----
+export const useProfile = () => useQuery({ queryKey: keys.profile, queryFn: () => api.get<Profile>('/user/profile') })
+
+export interface ProfileInput { firstName: string; lastName: string; phone: string; address: string }
+export function useUpdateProfile() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: ProfileInput) => api.put<Profile>('/user/profile', body),
+    onSuccess: (profile) => qc.setQueryData(keys.profile, profile),
+  })
+}
+
+export const useChangePassword = () =>
+  useMutation({ mutationFn: (body: { currentPassword: string; newPassword: string }) => api.put<unknown>('/user/password', body) })
