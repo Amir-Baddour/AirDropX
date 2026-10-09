@@ -65,3 +65,15 @@ export function onSessionChange(listener: Listener) {
     listeners.delete(listener)
   }
 }
+
+/** Changes fields of the stored user (for example the display name after a profile edit) without touching the token. */
+export function updateSessionUser(patch: Partial<SessionUser>) {
+  const current = getUser()
+  if (!current) return
+  try {
+    localStorage.setItem(USER_KEY, JSON.stringify({ ...current, ...patch }))
+  } catch {
+    /* storage unavailable */
+  }
+  listeners.forEach((l) => l())
+}

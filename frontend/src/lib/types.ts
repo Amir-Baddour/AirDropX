@@ -135,6 +135,8 @@ export interface PublicClaimStatus {
 export interface SessionUser {
   id: string
   username: string
+  /** Full name when the account has one (email accounts do); the sidebar prefers it over `username`. */
+  displayName?: string
   pfp: string | null
   role?: { id: string; name: string } | string
 }
@@ -181,4 +183,21 @@ export interface PlatformEvent {
   type: string
   message: string
   created_at: string
+}
+
+// ---- account / profile ----
+export interface Profile {
+  id: string
+  username: string
+  provider: 'LOCAL' | 'GOOGLE' | string
+  email: string | null
+  first_name: string | null
+  last_name: string | null
+  phone: string | null
+  address: string | null
+  pfp: string | null
+  role: string | null
+  has_password: boolean
+  display_name: string
+  created_at: string | null
 }

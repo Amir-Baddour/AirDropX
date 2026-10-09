@@ -31,8 +31,8 @@ public class UserRepository {
     }
     public User createUser(String email, String username, String provider, String providerId, String pfp, String address) throws SQLException {
         String sql = "WITH inserted_users AS (" +
-                "INSERT INTO users (username, provider, provider_id, pfp, address, role_id) " +
-                "VALUES (?, ?, ?, ?, ?, 1) " +
+                "INSERT INTO users (username, provider, provider_id, pfp, address, role_id, email) " +
+                "VALUES (?, ?, ?, ?, ?, 1, ?) " +
                 "RETURNING id, username, provider, provider_id, pfp, address, role_id " +
                 ") SELECT iu.id, iu.role_id, iu.username, iu.provider, iu.provider_id, iu.pfp, iu.address, r.name FROM " +
                 "inserted_users as iu LEFT JOIN roles r ON iu.role_id = r.id";
@@ -44,6 +44,7 @@ public class UserRepository {
             stmt.setString(3, providerId);
             stmt.setString(4, pfp);
             stmt.setString(5, address);
+            stmt.setString(6, email);
 
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {

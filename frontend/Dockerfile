@@ -1,5 +1,5 @@
 # Build the React app, then serve the static files with a tiny Caddy (about 40 MB image, ~15 MB RAM).
-FROM node:22-alpine AS build
+FROM public.ecr.aws/docker/library/node:22-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
@@ -9,7 +9,7 @@ ARG VITE_GOOGLE_CLIENT_ID=""
 ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 RUN npm run build
 
-FROM caddy:2-alpine
+FROM public.ecr.aws/docker/library/caddy:2-alpine
 COPY Caddyfile /etc/caddy/Caddyfile
 COPY --from=build /app/dist /srv
 EXPOSE 80

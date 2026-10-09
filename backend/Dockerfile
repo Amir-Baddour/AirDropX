@@ -1,5 +1,5 @@
 # ---------- Stage 1: build the shaded JAR with Maven ----------
-FROM maven:3.9-eclipse-temurin-17 AS build
+FROM public.ecr.aws/docker/library/maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /src
 
 # Download dependencies first so this layer is cached between builds
@@ -12,7 +12,7 @@ RUN mvn -B -q -DskipTests package \
  && find target -maxdepth 1 -name "*.jar" ! -name "original-*" -exec cp {} /app.jar \;
 
 # ---------- Stage 2: small runtime image ----------
-FROM eclipse-temurin:17-jre
+FROM public.ecr.aws/docker/library/eclipse-temurin:17-jre
 WORKDIR /app
 
 RUN apt-get update \

@@ -12,6 +12,8 @@ const DocsPage = lazy(() => import('@/features/landing/DocsPage'))
 const NotFoundPage = lazy(() => import('@/features/landing/NotFoundPage'))
 const LoginPage = lazy(() => import('@/features/auth/LoginPage'))
 const AuthCallbackPage = lazy(() => import('@/features/auth/AuthCallbackPage'))
+const RegisterPage = lazy(() => import('@/features/auth/RegisterPage'))
+const ProfilePage = lazy(() => import('@/features/auth/ProfilePage'))
 const ClaimPage = lazy(() => import('@/features/public/ClaimPage'))
 const StatusPage = lazy(() => import('@/features/public/StatusPage'))
 const AppLayout = lazy(() => import('@/components/layout/AppLayout'))
@@ -42,6 +44,7 @@ const router = createBrowserRouter([
   { path: '/', element: <LandingPage /> },
   { path: '/docs', element: <DocsPage /> },
   { path: '/login', element: <LoginPage /> },
+  { path: '/register', element: <RegisterPage /> },
   { path: '/auth/callback', element: <AuthCallbackPage /> },
   { path: '/claim/:id', element: <ClaimPage /> },
   { path: '/status/:token', element: <StatusPage /> },
@@ -54,6 +57,7 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <AirdropsPage /> },
           { path: 'company', element: <CompanyPage /> },
+          { path: 'profile', element: <ProfilePage /> },
           { path: 'airdrops/:id', element: <AirdropPage /> },
         ],
       },
