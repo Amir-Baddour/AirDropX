@@ -101,18 +101,20 @@ jobs:
     needs: [build, frontend]
     steps:
       - uses: actions/checkout@v4
+      # Use the runner's own Docker engine: no builder image to pull from Docker Hub,
+      # which rate-limits and sometimes fails for shared CI machines.
       - uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
       - name: Backend image
         uses: docker/build-push-action@v6
         with:
           context: ./backend
           push: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          provenance: false
       - name: Frontend image
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
           push: false
-          cache-from: type=gha,scope=web
-          cache-to: type=gha,mode=max,scope=web
+          provenance: false
