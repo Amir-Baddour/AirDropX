@@ -17,7 +17,13 @@ public class UserTokenCreator {
     }
     public UserToken createOrUpdateToken(User user, String refreshToken, long expiresAt) throws Exception {
         try {
-            validateTokenInput(user, refreshToken);
+            validateUser(user);
+            if (refreshToken == null || refreshToken.trim().isEmpty()) {
+                // Google only returns a refresh token the first time an account grants consent. On later logins
+                // it is absent, so keep the token we already stored instead of failing the login.
+                return tokenRepository.findTokenByUserId(user.id())
+                        .orElseThrow(() -> new IllegalArgumentException("Refresh token cannot be null or empty"));
+            }
             Timestamp expiresAtTime = Timestamp.from(Instant.now().plus(expiresAt, ChronoUnit.HOURS));
             Optional<UserToken> existingToken = tokenRepository.findTokenByUserId(user.id());
             if (existingToken.isPresent()) {
@@ -42,12 +48,6 @@ public class UserTokenCreator {
         }
         Instant sixHoursFromNow = Instant.now().plus(6, ChronoUnit.HOURS);
         return token.expiresAt().toInstant().isBefore(sixHoursFromNow);
-    }
-    private void validateTokenInput(User user, String refreshToken) {
-        validateUser(user);
-        if (refreshToken == null || refreshToken.trim().isEmpty()) {
-            throw new IllegalArgumentException("Refresh token cannot be null or empty");
-        }
     }
     private void validateUser(User user) {
         if (user == null) {
