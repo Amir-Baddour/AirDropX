@@ -1,5 +1,5 @@
 # Build the React app, then serve the static files with a tiny Caddy (about 40 MB image, ~15 MB RAM).
-FROM public.ecr.aws/docker/library/node:22-alpine AS build
+FROM public.ecr.aws/docker/library/node:26-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
